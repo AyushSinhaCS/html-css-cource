@@ -22,7 +22,7 @@ export default function CreateFormPage() {
     "Create a job application form"
   ];
 
-  const handleGenerate = async () => {
+  cconst handleGenerate = async () => {
     if (!prompt.trim()) return;
     
     setIsGenerating(true);
@@ -30,56 +30,61 @@ export default function CreateFormPage() {
     setPublishedUrl(null);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Generate a survey form based on the following prompt: "${prompt}". 
-        IMPORTANT RULES:
-        1. ALL non-text questions (rating, multiple_choice) MUST be required: true.
-        2. ALL text questions MUST be required: false.`,
-        config: {
+      // Use a valid model name like 'gemini-1.5-flash'
+      const ai = new GoogleGenAI(process.env.GEMINI_API_KEY || "");
+      const model = ai.getGenerativeModel({
+        model: "gemini-1.5-flash",
+      });
+
+      const result = await model.generateContent({
+        contents: [{
+          role: "user",
+          parts: [{
+            text: `Generate a survey form based on the following prompt: "${prompt}". 
+            IMPORTANT RULES:
+            1. ALL non-text questions (rating, multiple_choice) MUST be required: true.
+            2. ALL text questions MUST be required: false.`
+          }]
+        }],
+        generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              title: {
-                type: Type.STRING,
-                description: "The title of the form.",
-              },
+              title: { type: Type.STRING },
               questions: {
                 type: Type.ARRAY,
                 items: {
                   type: Type.OBJECT,
                   properties: {
-                    type: {
-                      type: Type.STRING,
-                      description: "The type of question. Must be one of: rating, multiple_choice, text",
-                    },
-                    question: {
-                      type: Type.STRING,
-                      description: "The question text.",
-                    },
-                    options: {
-                      type: Type.ARRAY,
-                      items: {
-                        type: Type.STRING,
-                      },
-                      description: "Options for multiple_choice questions. Omit for rating and text.",
-                    },
-                    required: {
-                      type: Type.BOOLEAN,
-                      description: "Whether the question is required. Must be true for rating and multiple_choice, false for text.",
-                    },
+                    type: { type: Type.STRING, description: "rating, multiple_choice, or text" },
+                    question: { type: Type.STRING },
+                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    required: { type: Type.BOOLEAN },
                   },
                   required: ["type", "question", "required"],
                 },
-                description: "The list of questions in the form.",
               },
             },
             required: ["title", "questions"],
           },
         },
       });
+
+      const data = JSON.parse(result.response.text());
+
+      setGeneratedForm({
+        id: "preview-" + Date.now(),
+        title: data.title,
+        questions: data.questions,
+      });
+    } catch (error) {
+      console.error("Error generating form:", error);
+      alert("AI Generation failed. Check if your API Key is correct in Render.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
       const jsonStr = response.text?.trim() || "{}";
       const data = JSON.parse(jsonStr);
