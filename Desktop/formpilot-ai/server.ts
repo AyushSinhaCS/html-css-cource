@@ -15,14 +15,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Persistent SQLite for Render
 const dbPath = process.env.DISK_PATH 
   ? path.join(process.env.DISK_PATH, "forms.db") 
   : path.join(__dirname, "forms.db");
 
 const db = new Database(dbPath);
 
-// Initialize Tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS forms (
     id TEXT PRIMARY KEY, title TEXT NOT NULL, questions TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -32,7 +30,6 @@ db.exec(`
   );
 `);
 
-// API Routes
 app.post("/api/forms", (req, res) => {
   const { id, title, questions } = req.body;
   const stmt = db.prepare("INSERT INTO forms (id, title, questions) VALUES (?, ?, ?)");
@@ -46,7 +43,6 @@ app.get("/api/forms/:id", (req, res) => {
   res.json({ ...form, questions: JSON.parse(form.questions) });
 });
 
-// Production Hosting and Routing Fix
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
@@ -54,15 +50,13 @@ async function startServer() {
   } else {
     const distPath = path.resolve(__dirname, "dist");
     app.use(express.static(distPath));
-    
-    // THE CATCH-ALL: This allows /form/:id and /dashboard/:id to work
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(Number(PORT), "0.0.0.0", () => {
-    console.log(`Server is live on port ${PORT}`);
+    console.log(`Server live on port ${PORT}`);
   });
 }
 

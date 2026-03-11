@@ -22,54 +22,27 @@ export default function CreateFormPage() {
     "Create a job application form"
   ];
 
-  cconst handleGenerate = async () => {
+  const handleGenerate = async () => {
     if (!prompt.trim()) return;
-    
     setIsGenerating(true);
     setGeneratedForm(null);
     setPublishedUrl(null);
-    
     try {
-      // Use a valid model name like 'gemini-1.5-flash'
       const ai = new GoogleGenAI(process.env.GEMINI_API_KEY || "");
-      const model = ai.getGenerativeModel({
-        model: "gemini-1.5-flash",
-      });
-
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent({
-        contents: [{
-          role: "user",
-          parts: [{
-            text: `Generate a survey form based on the following prompt: "${prompt}". 
-            IMPORTANT RULES:
-            1. ALL non-text questions (rating, multiple_choice) MUST be required: true.
-            2. ALL text questions MUST be required: false.`
-          }]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              questions: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING, description: "rating, multiple_choice, or text" },
-                    question: { type: Type.STRING },
-                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    required: { type: Type.BOOLEAN },
-                  },
-                  required: ["type", "question", "required"],
-                },
-              },
-            },
-            required: ["title", "questions"],
-          },
-        },
+        contents: [{ role: "user", parts: [{ text: `Generate a survey form based on: "${prompt}". Return JSON with "title" and "questions" (array of {type, question, options, required}).` }] }],
+        generationConfig: { responseMimeType: "application/json" }
       });
+      const data = JSON.parse(result.response.text());
+      setGeneratedForm({ id: "preview-" + Date.now(), ...data });
+    } catch (error) {
+      console.error(error);
+      alert("Generation failed. Check your API key in Render.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
       const data = JSON.parse(result.response.text());
 
