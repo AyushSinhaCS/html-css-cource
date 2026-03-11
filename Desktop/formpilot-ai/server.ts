@@ -53,24 +53,28 @@ app.get("/api/forms/:id", (req, res) => {
     res.status(500).json({ error: "Failed to fetch form" });
   }
 });
-const PORT = process.env.PORT || 10000;
-// Production Hosting Logic
+const PORT = 10000; 
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(__dirname, "dist");
     app.use(express.static(distPath));
     
-    // THE FIX: Redirects all non-API links to the React app
+    // THIS IS THE CATCH-ALL ROUTE
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  app.listen(Number(PORT), "0.0.0.0", () => {
-    console.log(`Server is live on port ${PORT}`);
+  // FORCE IT TO 10000
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`--- PRODUCTION SERVER LIVE ON PORT ${PORT} ---`);
   });
 }
 
