@@ -53,28 +53,21 @@ app.get("/api/forms/:id", (req, res) => {
     res.status(500).json({ error: "Failed to fetch form" });
   }
 });
-const PORT = process.env.PORT || 10000; 
+const PORT = 10000; // Force it to 10000, no fallback
 
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.resolve(__dirname, "dist");
-    app.use(express.static(distPath));
-    
-    // This part is what makes the /form/ links work!
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
+  // Always serve the production files on Render
+  const distPath = path.resolve(__dirname, "dist");
+  app.use(express.static(distPath));
+  
+  // Handle the /form/:id links
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
 
-  // Use 0.0.0.0 so Render can find the app
-  app.listen(Number(PORT), "0.0.0.0", () => {
-    console.log(`--- SERVER IS LIVE ON PORT ${PORT} ---`);
+  // Start the server on port 10000
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`--- CRITICAL: SERVER IS LIVE ON PORT ${PORT} ---`);
   });
 }
 
