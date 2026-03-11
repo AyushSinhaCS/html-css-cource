@@ -7,16 +7,17 @@ import { fileURLToPath } from 'url';
 
 dotenv.config();
 
+// Fix for __dirname in ES Modules (required for your project type)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Use the PORT environment variable provided by Render or default to 3000
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Initialize SQLite Database with a path that supports Render's persistent disk
+// Initialize SQLite Database
+// On Render, we use the persistent disk path if DISK_PATH is set
 const dbPath = process.env.DISK_PATH 
   ? path.join(process.env.DISK_PATH, "forms.db") 
   : path.join(__dirname, "forms.db");
@@ -41,97 +42,61 @@ db.exec(`
   );
 `);
 
-// API Routes
+// --- API ROUTES ---
 
-// Save Form
 app.post("/api/forms", (req, res) => {
   try {
     const { id, title, questions } = req.body;
-    if (!id || !title || !questions) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
     const stmt = db.prepare("INSERT INTO forms (id, title, questions) VALUES (?, ?, ?)");
     stmt.run(id, title, JSON.stringify(questions));
-
     res.json({ success: true, id });
   } catch (error: any) {
-    console.error("Error saving form:", error);
     res.status(500).json({ error: "Failed to save form", details: error.message });
   }
 });
 
-// Get Form by ID
 app.get("/api/forms/:id", (req, res) => {
   try {
     const { id } = req.params;
     const stmt = db.prepare("SELECT * FROM forms WHERE id = ?");
     const form = stmt.get(id) as any;
-
-    if (!form) {
-      return res.status(404).json({ error: "Form not found" });
-    }
-
-    res.json({
-      ...form,
-      questions: JSON.parse(form.questions),
-    });
+    if (!form) return res.status(404).json({ error: "Form not found" });
+    res.json({ ...form, questions: JSON.parse(form.questions) });
   } catch (error: any) {
-    console.error("Error fetching form:", error);
-    res.status(500).json({ error: "Failed to fetch form", details: error.message });
+    res.status(500).json({ error: "Failed to fetch form" });
   }
 });
 
-// Submit Response
 app.post("/api/responses", (req, res) => {
   try {
     const { formId, answers } = req.body;
-    if (!formId || !answers) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
     const stmt = db.prepare("INSERT INTO responses (form_id, answers) VALUES (?, ?)");
     stmt.run(formId, JSON.stringify(answers));
-
     res.json({ success: true });
   } catch (error: any) {
-    console.error("Error submitting response:", error);
-    res.status(500).json({ error: "Failed to submit response", details: error.message });
+    res.status(500).json({ error: "Failed to submit response" });
   }
 });
 
-// Get Responses by Form ID
 app.get("/api/forms/:id/responses", (req, res) => {
   try {
     const { id } = req.params;
-    
     const formStmt = db.prepare("SELECT * FROM forms WHERE id = ?");
     const form = formStmt.get(id) as any;
-    if (!form) {
-      return res.status(404).json({ error: "Form not found" });
-    }
-
     const stmt = db.prepare("SELECT * FROM responses WHERE form_id = ? ORDER BY created_at DESC");
     const responses = stmt.all(id) as any[];
-
     res.json({
-      form: {
-        ...form,
-        questions: JSON.parse(form.questions)
-      },
-      responses: responses.map(r => ({
-        ...r,
-        answers: JSON.parse(r.answers)
-      }))
+      form: { ...form, questions: JSON.parse(form.questions) },
+      responses: responses.map(r => ({ ...r, answers: JSON.parse(r.answers) }))
     });
   } catch (error: any) {
-    console.error("Error fetching responses:", error);
-    res.status(500).json({ error: "Failed to fetch responses", details: error.message });
+    res.status(500).json({ error: "Failed to fetch responses" });
   }
 });
 
+// --- SERVER START & STATIC FILES ---
+
 async function startServer() {
-  // If we are in development mode (on your laptop)
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -139,20 +104,20 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // If we are in production mode (on Render)
-    const distPath = path.resolve(__dirname, "dist");
+    const distPath = path.join(__dirname, "dist");
     
-    // Tell express to serve the files in the 'dist' folder
+    // 1. Serve built frontend files
     app.use(express.static(distPath));
-    
-    // If a user goes to any URL, send them the index.html file
+
+    // 2. THE FIX: Catch-all route to serve index.html for any frontend route
+    // This allows React Router to handle links like /forms/:id
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server is running on port ${PORT}`);
+  app.listen(Number(PORT), "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
 
