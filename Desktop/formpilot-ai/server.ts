@@ -53,7 +53,7 @@ app.get("/api/forms/:id", (req, res) => {
     res.status(500).json({ error: "Failed to fetch form" });
   }
 });
-const PORT = 10000; 
+const PORT = process.env.PORT || 10000; 
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
@@ -66,15 +66,15 @@ async function startServer() {
     const distPath = path.resolve(__dirname, "dist");
     app.use(express.static(distPath));
     
-    // THIS IS THE CATCH-ALL ROUTE
+    // This part is what makes the /form/ links work!
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  // FORCE IT TO 10000
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`--- PRODUCTION SERVER LIVE ON PORT ${PORT} ---`);
+  // Use 0.0.0.0 so Render can find the app
+  app.listen(Number(PORT), "0.0.0.0", () => {
+    console.log(`--- SERVER IS LIVE ON PORT ${PORT} ---`);
   });
 }
 
