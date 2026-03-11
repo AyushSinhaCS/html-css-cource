@@ -131,6 +131,7 @@ app.get("/api/forms/:id/responses", (req, res) => {
 });
 
 async function startServer() {
+  // If we are in development mode (on your laptop)
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -138,17 +139,20 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Serve static files from the 'dist' directory in production
-    app.use(express.static(path.join(__dirname, "dist")));
+    // If we are in production mode (on Render)
+    const distPath = path.resolve(__dirname, "dist");
     
-    // Catch-all route to serve index.html for SPA routing
+    // Tell express to serve the files in the 'dist' folder
+    app.use(express.static(distPath));
+    
+    // If a user goes to any URL, send them the index.html file
     app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
   });
 }
 
