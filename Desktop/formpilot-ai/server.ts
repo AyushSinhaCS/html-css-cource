@@ -53,7 +53,7 @@ app.get("/api/forms/:id", (req, res) => {
     res.status(500).json({ error: "Failed to fetch form" });
   }
 });
-
+const PORT = process.env.PORT || 10000;
 // Production Hosting Logic
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
