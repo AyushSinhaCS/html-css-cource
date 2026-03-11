@@ -15,14 +15,14 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// SQLite Persistence for Render
+// Persistent SQLite for Render
 const dbPath = process.env.DISK_PATH 
   ? path.join(process.env.DISK_PATH, "forms.db") 
   : path.join(__dirname, "forms.db");
 
 const db = new Database(dbPath);
 
-// Database Tables
+// Initialize Tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS forms (
     id TEXT PRIMARY KEY, title TEXT NOT NULL, questions TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -46,7 +46,7 @@ app.get("/api/forms/:id", (req, res) => {
   res.json({ ...form, questions: JSON.parse(form.questions) });
 });
 
-// Production Hosting Logic
+// Production Hosting and Routing Fix
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
@@ -55,7 +55,7 @@ async function startServer() {
     const distPath = path.resolve(__dirname, "dist");
     app.use(express.static(distPath));
     
-    // THIS IS THE FIX: It redirects all links to React
+    // THE CATCH-ALL: This allows /form/:id and /dashboard/:id to work
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
