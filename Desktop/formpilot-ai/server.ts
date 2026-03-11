@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import dotenv from "dotenv";
 import path from "path";
@@ -11,12 +10,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Use the PORT provided by Render
-const PORT = process.env.PORT || 3000;
+const PORT = 10000; // WE ARE HARD-CODING THIS TO FIX THE RENDER TIMEOUT
 
 app.use(express.json());
 
-// Persistent database path for Render
 const dbPath = process.env.DISK_PATH 
   ? path.join(process.env.DISK_PATH, "forms.db") 
   : path.join(__dirname, "forms.db");
@@ -32,43 +29,27 @@ db.exec(`
   );
 `);
 
-// API Routes
 app.post("/api/forms", (req, res) => {
-  try {
-    const { id, title, questions } = req.body;
-    const stmt = db.prepare("INSERT INTO forms (id, title, questions) VALUES (?, ?, ?)");
-    stmt.run(id, title, JSON.stringify(questions));
-    res.json({ success: true, id });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to save form" });
-  }
+  const { id, title, questions } = req.body;
+  const stmt = db.prepare("INSERT INTO forms (id, title, questions) VALUES (?, ?, ?)");
+  stmt.run(id, title, JSON.stringify(questions));
+  res.json({ success: true, id });
 });
 
 app.get("/api/forms/:id", (req, res) => {
-  try {
-    const form = db.prepare("SELECT * FROM forms WHERE id = ?").get(req.params.id) as any;
-    if (!form) return res.status(404).json({ error: "Form not found" });
-    res.json({ ...form, questions: JSON.parse(form.questions) });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch form" });
-  }
+  const form = db.prepare("SELECT * FROM forms WHERE id = ?").get(req.params.id) as any;
+  if (!form) return res.status(404).json({ error: "Not found" });
+  res.json({ ...form, questions: JSON.parse(form.questions) });
 });
-const PORT = 10000; // Force it to 10000, no fallback
 
-async function startServer() {
-  // Always serve the production files on Render
-  const distPath = path.resolve(__dirname, "dist");
-  app.use(express.static(distPath));
-  
-  // Handle the /form/:id links
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
-  });
+// ALWAYS SERVE PRODUCTION FILES ON RENDER
+const distPath = path.resolve(__dirname, "dist");
+app.use(express.static(distPath));
 
-  // Start the server on port 10000
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`--- CRITICAL: SERVER IS LIVE ON PORT ${PORT} ---`);
-  });
-}
+app.get("*", (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
+});
 
-startServer();
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`--- CRITICAL: SERVER IS LIVE ON PORT ${PORT} ---`);
+});
